@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 
+main
 
 # vim
 *.un~
