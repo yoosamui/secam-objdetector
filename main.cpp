@@ -15,6 +15,8 @@
 //  https://github.com/doleron/yolov5-opencv-cpp-python/blob/main/cpp/yolo.cpp
 //  https://github.com/nandinib1999/object-detection-yolo-opencv
 //
+//  https://ultralytics.com/yolov5
+//
 #include <dirent.h>
 
 #include <cerrno>
