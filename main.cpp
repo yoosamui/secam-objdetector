@@ -61,7 +61,7 @@ const float INPUT_WIDTH = 640.0;
 const float INPUT_HEIGHT = 640.0;
 const float SCORE_THRESHOLD = 0.2;
 const float NMS_THRESHOLD = 0.4;
-const float CONFIDENCE_THRESHOLD = 0.66;
+const float CONFIDENCE_THRESHOLD = 0.56;
 
 struct Detection {
     int class_id;
