@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <sstream>
 
@@ -63,7 +64,7 @@ const float INPUT_WIDTH = 640.0;
 const float INPUT_HEIGHT = 640.0;
 const float SCORE_THRESHOLD = 0.2;
 const float NMS_THRESHOLD = 0.4;
-const float CONFIDENCE_THRESHOLD = 0.56;
+const float CONFIDENCE_THRESHOLD = 0.65;
 
 struct Detection {
     int class_id;
@@ -94,8 +95,8 @@ cv::Mat format_yolov5(const cv::Mat &source)
     return result;
 }
 
-void detect(cv::Mat &image, cv::dnn::Net &net, std::vector<Detection> &output,
-            const std::vector<std::string> &className)
+void detect(float confidence_threshold, cv::Mat &image, cv::dnn::Net &net,
+            std::vector<Detection> &output, const std::vector<std::string> &className)
 {
     cv::Mat blob;
 
@@ -121,7 +122,7 @@ void detect(cv::Mat &image, cv::dnn::Net &net, std::vector<Detection> &output,
 
     for (int i = 0; i < rows; ++i) {
         float confidence = data[4];
-        if (confidence >= CONFIDENCE_THRESHOLD) {
+        if (confidence >= confidence_threshold) {
             float *classes_scores = data + 5;
             cv::Mat scores(1, className.size(), CV_32FC1, classes_scores);
             cv::Point class_id;
@@ -190,10 +191,17 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
 
     std::ifstream infile("includeonly.txt");
     std::string line;
+    string keyname;
 
     vector<string> includeonly;
     while (std::getline(infile, line)) {
         std::istringstream iss(line);
+
+        if (line[0] == '*') {
+            keyname = line.substr(1);
+            line = keyname;
+        }
+
         includeonly.push_back(line);
     }
 
@@ -207,14 +215,22 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
 
         if (includeonly.size()) {
             string classname = classes[classId];
+
             std::vector<string>::iterator it =
                 std::find(includeonly.begin(), includeonly.end(), classname);
+
             if (it == includeonly.end()) {
                 continue;
             }
-        }
 
-        found = true;
+            if (!keyname.empty()) {
+                found = keyname == classname;
+            } else {
+                found = true;
+            }
+        } else {
+            found = true;
+        }
 
         Rect r = inflate(box, 20, input);
 
@@ -234,21 +250,42 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
     return found;
 }
 
-int main(int argc, char **argv)
+// static const string keys =
+//"{ help help    |    | print help message. }"
+//"{ confidence c |    | the detection confidence 0.0 - 1.0 "
+//"{ directory d  |    | the image directory.}"
+//"{ targetfile t |    | destination file.}";
+static const string keys =
+    "{ help help|       | print help message. }"
+    "{ confidence c |0.6| the detection confidence 0.0 - 1.}"
+    "{ directory d  |   | the image directory.}"
+    "{ targetfile t |output.jpg  | destination file.}";
+
+int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        std::cout << "please enter a Directory name containe the images: " << std::endl;
+    cv::CommandLineParser parser(argc, argv, keys);
+    parser.about("This is the secam client server system.");
+
+    if (parser.has("help")) {
+        parser.printMessage();
         return 0;
     }
+
+    if (!parser.check()) {
+        parser.printErrors();
+        return 1;
+    }
+
+    float confidence = parser.get<float>("confidence");
+    string directory = parser.get<std::string>("directory");
+    string targetfile = parser.get<std::string>("targetfile");
+
+    cout << "---CONFIDENCE = " << confidence << endl;
+    cout << "---DIRECTORY = " << directory << endl;
+    cout << "---TARGETFILE = " << targetfile << endl;
+
     std::ifstream ifs("data/classes.txt");
     classes = load_class_list();
-
-    string destination_file = "output.jpg";
-    string directory = argv[1];
-
-    if (argc == 3) {
-        destination_file = argv[2];
-    }
 
     // Read all images form Directory.
     DIR *dir;
@@ -287,11 +324,14 @@ int main(int argc, char **argv)
             load_net(net, is_cuda);
 
             std::vector<Detection> output;
-            detect(frame, net, output, classes);
+            detect(confidence, frame, net, output, classes);
 
             int detections = output.size();
             cout << "detections: " << detections << endl;
-            draw(frame, output, destination_file);
+            cout << "confidence = " << confidence << endl;
+            if (draw(frame, output, targetfile)) {
+                cout << "--->Found" << endl;
+            }
 
             if (detections) break;
         }
