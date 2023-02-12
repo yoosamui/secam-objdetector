@@ -19,6 +19,7 @@
 //
 #include <dirent.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <fstream>
@@ -26,6 +27,8 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <sstream>
+#include <string>
+#include <vector>
 
 using namespace cv;
 using namespace std;
@@ -232,6 +235,8 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
             found = true;
         }
 
+        cout << "found classname : " << classes[classId] << endl;
+
         Rect r = inflate(box, 20, input);
 
         rectangle(input, r, color, 2);
@@ -249,7 +254,10 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
     if (found) imwrite(output_file, input);
     return found;
 }
-
+bool SortComparator(string s1, string s2)
+{
+    return s1 < s2;
+}
 // static const string keys =
 //"{ help help    |    | print help message. }"
 //"{ confidence c |    | the detection confidence 0.0 - 1.0 "
@@ -257,7 +265,7 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
 //"{ targetfile t |    | destination file.}";
 static const string keys =
     "{ help help|       | print help message. }"
-    "{ confidence c |0.6| the detection confidence 0.0 - 1.}"
+    "{ confidence c |0.4| the detection confidence 0.0 - 1.}"
     "{ directory d  |   | the image directory.}"
     "{ targetfile t |output.jpg  | destination file.}";
 
@@ -310,10 +318,12 @@ int main(int argc, char *argv[])
     cv::dnn::Net net;
 
     if (images.size()) {
-        std::sort(images.begin(), images.end());  // this will sort the strings
-        for (std::vector<std::string>::iterator it = images.begin(); it != images.end(); ++it) {
-            std::cout << *it << std::endl;
-        }
+        // sort(images.begin(), images.end(), greater<string>());
+        sort(images.begin(), images.end(), SortComparator);  // this will sort the strings
+
+        // for (std::vector<std::string>::iterator it = images.begin(); it != images.end(); ++it) {
+        // std::cout << *it << std::endl;
+        //}
 
         for (auto &s : images) {
             string filename = directory + "/" + s;
@@ -323,17 +333,16 @@ int main(int argc, char *argv[])
 
             load_net(net, is_cuda);
 
+            cout << "DETECT-----> " << filename << endl;
             std::vector<Detection> output;
             detect(confidence, frame, net, output, classes);
 
             int detections = output.size();
             cout << "detections: " << detections << endl;
-            cout << "confidence = " << confidence << endl;
             if (draw(frame, output, targetfile)) {
-                cout << "--->Found" << endl;
+                cout << "Found!" << endl;
+                break;
             }
-
-            if (detections) break;
         }
     }
 
