@@ -49,11 +49,11 @@ void load_net(cv::dnn::Net &net, bool is_cuda)
 {
     auto result = cv::dnn::readNet("data/yolov5n.onnx");
     if (is_cuda) {
-        std::cout << "Attempty to use CUDA\n";
+        //    std::cout << "Attempty to use CUDA\n";
         result.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
         result.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA_FP16);
     } else {
-        std::cout << "Running on CPU\n";
+        //   std::cout << "Running on CPU\n";
         result.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         result.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
     }
@@ -209,11 +209,12 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
     }
 
     bool found = false;
-    cout << "draw : " << detections << endl;
+    //    cout << "draw : " << detections << endl;
     for (int c = 0; c < detections; ++c) {
         auto detection = output[c];
         auto box = detection.box;
         auto classId = detection.class_id;
+        float confidence = detection.confidence;
         auto color = get_color(classes[classId]);
 
         if (includeonly.size()) {
@@ -235,7 +236,7 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
             found = true;
         }
 
-        cout << "found classname : " << classes[classId] << endl;
+        //   cout << "found classname : " << classes[classId] << endl;
 
         Rect r = inflate(box, 20, input);
 
@@ -244,7 +245,7 @@ bool draw(const Mat &frame, vector<Detection> &output, const string &output_file
 
         float fscale = 0.4;
         int thickness = 1;
-        string title = classes[classId];
+        string title = classes[classId] + " " + to_string(confidence);
 
         //            cout << c << " " << r.x << " " << title << endl;
         putText(input, title, Point(r.x + 2, r.y - 5), cv::FONT_HERSHEY_SIMPLEX, fscale,
@@ -288,9 +289,9 @@ int main(int argc, char *argv[])
     string directory = parser.get<std::string>("directory");
     string targetfile = parser.get<std::string>("targetfile");
 
-    cout << "---CONFIDENCE = " << confidence << endl;
-    cout << "---DIRECTORY = " << directory << endl;
-    cout << "---TARGETFILE = " << targetfile << endl;
+    // cout << "---CONFIDENCE = " << confidence << endl;
+    // cout << "---DIRECTORY = " << directory << endl;
+    // cout << "---TARGETFILE = " << targetfile << endl;
 
     std::ifstream ifs("data/classes.txt");
     classes = load_class_list();
@@ -317,6 +318,7 @@ int main(int argc, char *argv[])
     bool is_cuda = false;  // argc > 1 && strcmp(argv[1], "cuda") == 0;
     cv::dnn::Net net;
 
+    bool found = false;
     if (images.size()) {
         // sort(images.begin(), images.end(), greater<string>());
         sort(images.begin(), images.end(), SortComparator);  // this will sort the strings
@@ -324,27 +326,29 @@ int main(int argc, char *argv[])
         // for (std::vector<std::string>::iterator it = images.begin(); it != images.end(); ++it) {
         // std::cout << *it << std::endl;
         //}
-
         for (auto &s : images) {
             string filename = directory + "/" + s;
 
-            std::cout << filename << std::endl;
+            //  std::cout << filename << std::endl;
             Mat frame = imread(filename);
 
             load_net(net, is_cuda);
 
-            cout << "DETECT-----> " << filename << endl;
+            //      cout << "DETECT-----> " << filename << endl;
             std::vector<Detection> output;
             detect(confidence, frame, net, output, classes);
 
             int detections = output.size();
-            cout << "detections: " << detections << endl;
+            //    cout << "detections: " << detections << endl;
             if (draw(frame, output, targetfile)) {
-                cout << "Found!" << endl;
+                found = true;
+                //      cout << "Found!" << endl;
                 break;
             }
         }
     }
 
-    return 0;
+    cout << (int)found << endl;
+
+    return (int)found;
 }
